@@ -1,0 +1,97 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  quote-generator
+
+  Serverless application to serve motivational quotes via API and email.
+
+Globals:
+  Function:
+    Timeout: 3
+    LoggingConfig:
+      LogFormat: JSON
+
+Resources:
+  QuoteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: quote_api/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      Policies:
+        - AWSLambdaBasicExecutionRole  # Enables CloudWatch logging
+      Events:
+        QuoteAPI:
+          Type: Api
+          Properties:
+            Path: /quote
+            Method: get
+
+  SubscribeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: subscribe/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: SubscribersTable
+      Events:
+        SubscribeAPI:
+          Type: Api
+          Properties:
+            Path: /subscribe
+            Method: post
+
+  SubscribersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: SubscribersTable
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name:
+        Fn::Sub: ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName:
+        Ref: ApplicationResourceGroup
+      AutoConfigurationEnabled: 'true'
+
+Outputs:
+  QuoteApiEndpoint:
+    Description: API Gateway endpoint URL for quote function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/quote/"
+
+  QuoteFunction:
+    Description: Quote Lambda Function ARN
+    Value: !GetAtt QuoteFunction.Arn
+
+  QuoteFunctionIamRole:
+    Description: Implicit IAM Role created for quote function
+    Value: !GetAtt QuoteFunctionRole.Arn
+
+  SubscribeApiEndpoint:
+    Description: API Gateway endpoint URL for subscribe function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/subscribe/"
+
+  SubscribeFunction:
+    Description: Subscribe Lambda Function ARN
+    Value: !GetAtt SubscribeFunction.Arn
