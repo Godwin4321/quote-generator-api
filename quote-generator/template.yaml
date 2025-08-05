@@ -48,6 +48,25 @@ Resources:
             Path: /subscribe
             Method: post
 
+  UnsubscribeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: unsubscribe/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: SubscribersTable
+      Events:
+        UnsubscribeAPI:
+          Type: Api
+          Properties:
+            Path: /unsubscribe
+            Method: delete
+
   SubscribersTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -95,3 +114,11 @@ Outputs:
   SubscribeFunction:
     Description: Subscribe Lambda Function ARN
     Value: !GetAtt SubscribeFunction.Arn
+
+  UnsubscribeApiEndpoint:
+    Description: API Gateway endpoint URL for unsubscribe function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/unsubscribe/"
+
+  UnsubscribeFunction:
+    Description: Unsubscribe Lambda Function ARN
+    Value: !GetAtt UnsubscribeFunction.Arn
