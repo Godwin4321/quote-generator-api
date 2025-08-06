@@ -1,26 +1,41 @@
 import json
+import os
 import random
+import boto3
 
-# Sample hardcoded quotes (we'll later move these to DynamoDB)
-quotes = [
-    "Believe in yourself.",
-    "Every day is a second chance.",
-    "Push through the pain.",
-    "Your only limit is your mind.",
-    "Stay positive, work hard, make it happen."
-]
+dynamodb = boto3.resource('dynamodb')
+table_name = os.environ.get('QUOTES_TABLE')
+quotes_table = dynamodb.Table(table_name)
 
 
 def lambda_handler(event, context):
-    random_quote = random.choice(quotes)
+    try:
+        # Scan all quotes
+        response = quotes_table.scan()
+        items = response.get('Items', [])
 
-    return {
-        "statusCode": 200,
-        "headers": {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*"  # Optional, good for frontend testing
-        },
-        "body": json.dumps({
-            "quote": random_quote
-        })
-    }
+        if not items:
+            return {
+                "statusCode": 404,
+                "body": json.dumps({"error": "No quotes found."})
+            }
+
+        random_quote = random.choice(items)
+
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            "body": json.dumps({
+                "quote": random_quote.get("text"),
+                "author": random_quote.get("author", "Unknown")
+            })
+        }
+
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": str(e)})
+        }

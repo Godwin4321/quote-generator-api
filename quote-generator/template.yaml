@@ -20,14 +20,20 @@ Resources:
       Runtime: python3.12
       Architectures:
         - x86_64
+      Environment:
+        Variables:
+          QUOTES_TABLE: QuotesTable
       Policies:
         - AWSLambdaBasicExecutionRole
+        - DynamoDBReadPolicy:
+            TableName: QuotesTable
       Events:
         QuoteAPI:
           Type: Api
           Properties:
             Path: /quote
             Method: get
+
 
   SubscribeFunction:
     Type: AWS::Serverless::Function
