@@ -21,7 +21,7 @@ Resources:
       Architectures:
         - x86_64
       Policies:
-        - AWSLambdaBasicExecutionRole  # Enables CloudWatch logging
+        - AWSLambdaBasicExecutionRole
       Events:
         QuoteAPI:
           Type: Api
@@ -67,6 +67,42 @@ Resources:
             Path: /unsubscribe
             Method: delete
 
+  AddQuoteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: add_quote/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          QUOTES_TABLE: QuotesTable
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - DynamoDBCrudPolicy:
+            TableName: QuotesTable
+      Events:
+        AddQuoteAPI:
+          Type: Api
+          Properties:
+            Path: /add-quote
+            Method: post
+            Auth:
+              ApiKeyRequired: true
+
+  QuotesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: QuotesTable
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
   SubscribersTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -99,26 +135,30 @@ Outputs:
     Description: API Gateway endpoint URL for quote function
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/quote/"
 
-  QuoteFunction:
-    Description: Quote Lambda Function ARN
-    Value: !GetAtt QuoteFunction.Arn
-
-  QuoteFunctionIamRole:
-    Description: Implicit IAM Role created for quote function
-    Value: !GetAtt QuoteFunctionRole.Arn
-
   SubscribeApiEndpoint:
     Description: API Gateway endpoint URL for subscribe function
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/subscribe/"
-
-  SubscribeFunction:
-    Description: Subscribe Lambda Function ARN
-    Value: !GetAtt SubscribeFunction.Arn
 
   UnsubscribeApiEndpoint:
     Description: API Gateway endpoint URL for unsubscribe function
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/unsubscribe/"
 
+  AddQuoteApiEndpoint:
+    Description: API Gateway endpoint URL for add-quote function
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/add-quote/"
+
+  QuoteFunction:
+    Description: Quote Lambda Function ARN
+    Value: !GetAtt QuoteFunction.Arn
+
+  SubscribeFunction:
+    Description: Subscribe Lambda Function ARN
+    Value: !GetAtt SubscribeFunction.Arn
+
   UnsubscribeFunction:
     Description: Unsubscribe Lambda Function ARN
     Value: !GetAtt UnsubscribeFunction.Arn
+
+  AddQuoteFunction:
+    Description: AddQuote Lambda Function ARN
+    Value: !GetAtt AddQuoteFunction.Arn
