@@ -105,6 +105,7 @@ Resources:
           QUOTES_TABLE: QuotesTable
           SUBSCRIBERS_TABLE: SubscribersTable
           FROM_EMAIL: godwinjayakumar1@gmail.com
+          SLACK_WEBHOOK_PARAM: "/daily-email/slackWebhook"
       Policies:
         - AWSLambdaBasicExecutionRole
         - DynamoDBReadPolicy:
@@ -117,11 +118,16 @@ Resources:
                 - ses:SendEmail
                 - ses:SendRawEmail
               Resource: "*"
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: arn:aws:ssm:us-east-1:*:parameter/daily-email/slackWebhook
       Events:
         DailySchedule:
           Type: Schedule
           Properties:
             Schedule: cron(30 2 * * ? *)
+
 
 
   QuotesTable:
