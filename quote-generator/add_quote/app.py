@@ -1,66 +1,82 @@
 import json
-import boto3
-import os
 import uuid
+import boto3
+from botocore.exceptions import ClientError
 
 dynamodb = boto3.resource('dynamodb')
-table_name = os.environ.get('QUOTES_TABLE')
-quotes_table = dynamodb.Table(table_name)
+table = dynamodb.Table('QuotesTable')
+
+# CORS headers that will be included in ALL responses
+CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Methods': 'POST,OPTIONS'
+}
 
 
 def lambda_handler(event, context):
+    # Handle CORS preflight
+    if event.get("httpMethod") == "OPTIONS":
+        return {
+            'statusCode': 200,
+            'headers': CORS_HEADERS,
+            'body': json.dumps({'message': 'CORS preflight OK'})
+        }
+
+    # API Key Validation - MUST return CORS headers
+    api_key = event.get('headers', {}).get(
+        'x-api-key') or event.get('headers', {}).get('X-Api-Key')
+    if not api_key:
+        return {
+            'statusCode': 403,
+            'headers': CORS_HEADERS,
+            'body': json.dumps({'error': 'API key is missing'})
+        }
+
     try:
         body = json.loads(event.get('body', '{}'))
 
-        # Determine if multiple quotes are provided
-        if 'quotes' in body and isinstance(body['quotes'], list):
-            quotes = body['quotes']
-        else:
-            quotes = [body]  # Treat as single quote
-
-        if not quotes:
+        # Validate request format
+        if not isinstance(body.get('quotes'), list) or len(body['quotes']) == 0:
             return {
-                "statusCode": 400,
-                "body": json.dumps({"error": "No quote(s) provided."})
+                'statusCode': 400,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({'error': 'Invalid request format'})
             }
 
-        added = []
-        errors = []
+        quote = body['quotes'][0]
+        if not isinstance(quote, dict) or not quote.get('text'):
+            return {
+                'statusCode': 400,
+                'headers': CORS_HEADERS,
+                'body': json.dumps({'error': 'Quote text is required'})
+            }
 
-        for quote in quotes:
-            text = quote.get('text')
-            author = quote.get('author', 'Unknown')
-
-            if not text or not isinstance(text, str):
-                errors.append({"error": "Invalid quote text", "quote": quote})
-                continue
-
-            quote_id = str(uuid.uuid4())
-            try:
-                quotes_table.put_item(
-                    Item={
-                        'id': quote_id,
-                        'text': text,
-                        'author': author
-                    }
-                )
-                added.append({"id": quote_id, "text": text, "author": author})
-            except Exception as e:
-                errors.append({"error": str(e), "quote": quote})
+        item = {
+            'id': str(uuid.uuid4()),
+            'text': quote['text'],
+            'author': quote.get('author', 'Unknown')
+        }
+        table.put_item(Item=item)
 
         return {
-            "statusCode": 201 if added else 400,
-            "body": json.dumps({
-                "added": added,
-                "errors": errors
+            'statusCode': 201,
+            'headers': CORS_HEADERS,
+            'body': json.dumps({
+                'message': 'Quote added successfully',
+                'quote': item
             })
         }
 
+    except json.JSONDecodeError:
+        return {
+            'statusCode': 400,
+            'headers': CORS_HEADERS,
+            'body': json.dumps({'error': 'Invalid JSON format'})
+        }
     except Exception as e:
         return {
-            "statusCode": 500,
-            "body": json.dumps({
-                "error": "Unexpected error",
-                "details": str(e)
-            })
+            'statusCode': 500,
+            'headers': CORS_HEADERS,
+            'body': json.dumps({'error': str(e)})
         }

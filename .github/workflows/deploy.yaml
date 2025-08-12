@@ -11,7 +11,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: quote-generator  # IMPORTANT: since template.yaml is here
+        working-directory: quote-generator
 
     steps:
       - name: Checkout code
@@ -20,7 +20,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # Match your local Python version
+          python-version: '3.12'
 
       - name: Install AWS SAM CLI
         uses: aws-actions/setup-sam@v2
@@ -30,10 +30,15 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1  # Use the region you chose earlier
+          aws-region: us-east-1
 
       - name: SAM Build
         run: sam build
 
       - name: SAM Deploy
         run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset --stack-name quote-generator --capabilities CAPABILITY_IAM
+
+      - name: Sync frontend to S3
+        run: |
+          BUCKET_NAME="quote-generator-frontend-$(aws sts get-caller-identity --query Account --output text)"
+          aws s3 sync frontend/ s3://$BUCKET_NAME --delete

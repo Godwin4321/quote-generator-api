@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QuoteVerse</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>QuoteVerse</h1>
+            <p>Your Daily Dose of Inspiration</p>
+        </header>
+
+        <main>
+            <section class="quote-box">
+                <blockquote id="quoteText">Loading quote...</blockquote>
+                <p id="quoteAuthor"></p>
+                <button id="newQuoteBtn">Get a Quote</button>
+            </section>
+
+            <section class="subscribe-box">
+                <h2>Subscribe for Daily Quotes</h2>
+                <input type="email" id="emailInput" placeholder="Enter your email" />
+                <button id="subscribeBtn">Subscribe</button>
+            </section>
+
+            <section class="unsubscribe-box">
+                <h2>Unsubscribe</h2>
+                <input type="email" id="unsubscribeEmailInput" placeholder="Enter your email" />
+                <button id="unsubscribeBtn">Unsubscribe</button>
+            </section>
+
+            <section class="add-quote-box">
+                <h2>Add a Quote (Admin Only)</h2>
+                <input type="text" id="quoteTextInput" placeholder="Quote text" />
+                <input type="text" id="quoteAuthorInput" placeholder="Author (optional)" />
+                <input type="password" id="apiKeyInput" placeholder="Enter API Key" />
+                <button id="addQuoteBtn">Add Quote</button>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 QuoteVerse. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

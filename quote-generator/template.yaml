@@ -1,9 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: >
-  quote-generator
-
-  Serverless application to serve motivational quotes via API and email.
+Description: QuoteVerse API with complete CORS solution
 
 Globals:
   Function:
@@ -12,6 +9,15 @@ Globals:
       LogFormat: JSON
 
 Resources:
+  MyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+        MaxAge: "'300'"
 
   QuoteFunction:
     Type: AWS::Serverless::Function
@@ -22,15 +28,16 @@ Resources:
       Architectures: [x86_64]
       Environment:
         Variables:
-          QUOTES_TABLE: QuotesTable
+          QUOTES_TABLE: !Ref QuotesTable
       Policies:
         - AWSLambdaBasicExecutionRole
         - DynamoDBReadPolicy:
-            TableName: QuotesTable
+            TableName: !Ref QuotesTable
       Events:
         QuoteAPI:
           Type: Api
           Properties:
+            RestApiId: !Ref MyApi
             Path: /quote
             Method: get
 
@@ -44,11 +51,12 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - DynamoDBCrudPolicy:
-            TableName: SubscribersTable
+            TableName: !Ref SubscribersTable
       Events:
         SubscribeAPI:
           Type: Api
           Properties:
+            RestApiId: !Ref MyApi
             Path: /subscribe
             Method: post
 
@@ -62,11 +70,12 @@ Resources:
       Policies:
         - AWSLambdaBasicExecutionRole
         - DynamoDBCrudPolicy:
-            TableName: SubscribersTable
+            TableName: !Ref SubscribersTable
       Events:
         UnsubscribeAPI:
           Type: Api
           Properties:
+            RestApiId: !Ref MyApi
             Path: /unsubscribe
             Method: delete
 
@@ -79,15 +88,16 @@ Resources:
       Architectures: [x86_64]
       Environment:
         Variables:
-          QUOTES_TABLE: QuotesTable
+          QUOTES_TABLE: !Ref QuotesTable
       Policies:
         - AWSLambdaBasicExecutionRole
         - DynamoDBCrudPolicy:
-            TableName: QuotesTable
+            TableName: !Ref QuotesTable
       Events:
         AddQuoteAPI:
           Type: Api
           Properties:
+            RestApiId: !Ref MyApi
             Path: /add-quote
             Method: post
             Auth:
@@ -102,16 +112,16 @@ Resources:
       Architectures: [x86_64]
       Environment:
         Variables:
-          QUOTES_TABLE: QuotesTable
-          SUBSCRIBERS_TABLE: SubscribersTable
+          QUOTES_TABLE: !Ref QuotesTable
+          SUBSCRIBERS_TABLE: !Ref SubscribersTable
           FROM_EMAIL: godwinjayakumar1@gmail.com
           SLACK_WEBHOOK_PARAM: "/daily-email/slackWebhook"
       Policies:
         - AWSLambdaBasicExecutionRole
         - DynamoDBReadPolicy:
-            TableName: QuotesTable
+            TableName: !Ref QuotesTable
         - DynamoDBReadPolicy:
-            TableName: SubscribersTable
+            TableName: !Ref SubscribersTable
         - Statement:
             - Effect: Allow
               Action:
@@ -127,8 +137,6 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: cron(30 2 * * ? *)
-
-
 
   QuotesTable:
     Type: AWS::DynamoDB::Table
@@ -154,52 +162,52 @@ Resources:
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
 
-  ApplicationResourceGroup:
-    Type: AWS::ResourceGroups::Group
+  # --- New S3 bucket for frontend hosting ---
+  FrontendBucket:
+    Type: AWS::S3::Bucket
     Properties:
-      Name: !Sub ApplicationInsights-SAM-${AWS::StackName}
-      ResourceQuery:
-        Type: CLOUDFORMATION_STACK_1_0
+      BucketName: !Sub "${AWS::StackName}-frontend-${AWS::AccountId}"
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
 
-  ApplicationInsightsMonitoring:
-    Type: AWS::ApplicationInsights::Application
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
     Properties:
-      ResourceGroupName: !Ref ApplicationResourceGroup
-      AutoConfigurationEnabled: 'true'
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: "*"
+            Action: "s3:GetObject"
+            Resource: !Sub "${FrontendBucket.Arn}/*"
 
 Outputs:
+  ApiEndpoint:
+    Description: Base URL for API Gateway
+    Value: !Sub "https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
   QuoteApiEndpoint:
-    Description: API Gateway endpoint URL for quote function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/quote/"
-
+    Description: Endpoint for quote function
+    Value: !Sub "https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/quote"
   SubscribeApiEndpoint:
-    Description: API Gateway endpoint URL for subscribe function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/subscribe/"
-
+    Description: Endpoint for subscribe function
+    Value: !Sub "https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/subscribe"
   UnsubscribeApiEndpoint:
-    Description: API Gateway endpoint URL for unsubscribe function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/unsubscribe/"
-
+    Description: Endpoint for unsubscribe function
+    Value: !Sub "https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/unsubscribe"
   AddQuoteApiEndpoint:
-    Description: API Gateway endpoint URL for add-quote function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/add-quote/"
-
-  QuoteFunction:
-    Description: Quote Lambda Function ARN
-    Value: !GetAtt QuoteFunction.Arn
-
-  SubscribeFunction:
-    Description: Subscribe Lambda Function ARN
-    Value: !GetAtt SubscribeFunction.Arn
-
-  UnsubscribeFunction:
-    Description: Unsubscribe Lambda Function ARN
-    Value: !GetAtt UnsubscribeFunction.Arn
-
-  AddQuoteFunction:
-    Description: AddQuote Lambda Function ARN
-    Value: !GetAtt AddQuoteFunction.Arn
-
-  DailyEmailFunction:
-    Description: Daily Email Lambda Function ARN
-    Value: !GetAtt DailyEmailFunction.Arn
+    Description: Endpoint for add-quote function
+    Value: !Sub "https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/add-quote"
+  FrontendBucketURL:
+    Description: Public URL for the hosted frontend
+    Value: !Sub "http://${FrontendBucket}.s3-website-${AWS::Region}.amazonaws.com"
