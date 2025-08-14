@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: QuoteVerse API with complete CORS solution
+Description: QuoteVerse API
 
 Globals:
   Function:
@@ -31,8 +31,11 @@ Resources:
           QUOTES_TABLE: !Ref QuotesTable
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBReadPolicy:
-            TableName: !Ref QuotesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+              Resource: !GetAtt QuotesTable.Arn
       Events:
         QuoteAPI:
           Type: Api
@@ -50,8 +53,11 @@ Resources:
       Architectures: [x86_64]
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBCrudPolicy:
-            TableName: !Ref SubscribersTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt SubscribersTable.Arn
       Events:
         SubscribeAPI:
           Type: Api
@@ -69,8 +75,11 @@ Resources:
       Architectures: [x86_64]
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBCrudPolicy:
-            TableName: !Ref SubscribersTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:DeleteItem
+              Resource: !GetAtt SubscribersTable.Arn
       Events:
         UnsubscribeAPI:
           Type: Api
@@ -91,8 +100,11 @@ Resources:
           QUOTES_TABLE: !Ref QuotesTable
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBCrudPolicy:
-            TableName: !Ref QuotesTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt QuotesTable.Arn
       Events:
         AddQuoteAPI:
           Type: Api
@@ -118,20 +130,27 @@ Resources:
           SLACK_WEBHOOK_PARAM: "/daily-email/slackWebhook"
       Policies:
         - AWSLambdaBasicExecutionRole
-        - DynamoDBReadPolicy:
-            TableName: !Ref QuotesTable
-        - DynamoDBReadPolicy:
-            TableName: !Ref SubscribersTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+              Resource: !GetAtt QuotesTable.Arn
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+              Resource: !GetAtt SubscribersTable.Arn
         - Statement:
             - Effect: Allow
               Action:
                 - ses:SendEmail
                 - ses:SendRawEmail
-              Resource: "*"
+              Resource: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/godwinjayakumar1@gmail.com"
+        - Statement:
             - Effect: Allow
               Action:
                 - ssm:GetParameter
-              Resource: arn:aws:ssm:us-east-1:*:parameter/daily-email/slackWebhook
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/daily-email/slackWebhook"
       Events:
         DailySchedule:
           Type: Schedule
@@ -162,7 +181,6 @@ Resources:
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
 
-  # --- New S3 bucket for frontend hosting ---
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
